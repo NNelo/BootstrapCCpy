@@ -112,11 +112,16 @@ class BootstrapCCpy:
         Mk = np.zeros((self.data.shape[0],) * 2)
         Is = np.zeros((self.data.shape[0],) * 2)
 
-        with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
-            sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
-            for so in sout:
-                Mk += so[0]
-                Is += so[1]
+        for b in range(self.B_):
+            Mkb, Isb = self._forEachSample(k=k, h=b, verbose=verbose)
+            Mk += Mkb
+            Is += Isb
+
+        # with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
+        #     sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
+        #     for so in sout:
+        #         Mk += so[0]
+        #         Is += so[1]
 
         Mk /= Is + 1e-8  # consensus matrix
         # Mk[i_] is upper triangular (with zeros on diagonal), we now make it symmetric
