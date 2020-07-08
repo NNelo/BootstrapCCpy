@@ -43,7 +43,8 @@ class BootstrapCCpy:
         self.mC_ = 10
         self.n_cores = n_cores
 
-    def _internal_resample_rows(self, data):
+    @staticmethod
+    def _internal_resample_rows(data):
         resampled_indices = np.random.choice(range(data.shape[0]), size=int(data.shape[0]), replace=True)
         #  resampled_data_unique, resampled_indices_unique= np.unique(self.data[resampled_indices, :], return_index=True, axis=0)
 
@@ -52,7 +53,8 @@ class BootstrapCCpy:
 
         return resampled_indices_unique, resampled_data_unique
 
-    def _internal_resample_cols(self, data):
+    @staticmethod
+    def _internal_resample_cols(data):
         resampled_indices = np.random.choice(range(data.shape[0]), size=int(data.shape[0]), replace=True)
         # resampled_indices_cols = np.unique(np.random.choice(range(self.data.shape[1]), size=int(self.data.shape[1]), replace=True))
 
