@@ -112,16 +112,16 @@ class BootstrapCCpy:
         Mk = np.zeros((self.data.shape[0],) * 2)
         Is = np.zeros((self.data.shape[0],) * 2)
 
-        for b in range(self.B_):
-            Mkb, Isb = self._forEachSample(k=k, h=b, verbose=verbose)
-            Mk += Mkb
-            Is += Isb
+        # for b in range(self.B_):
+        #     Mkb, Isb = self._forEachSample(k=k, h=b, verbose=verbose)
+        #     Mk += Mkb
+        #     Is += Isb
 
-        # with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
-        #     sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
-        #     for so in sout:
-        #         Mk += so[0]
-        #         Is += so[1]
+        with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
+            sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
+            for so in sout:
+                Mk += so[0]
+                Is += so[1]
 
         Mk /= Is + 1e-8  # consensus matrix
         # Mk[i_] is upper triangular (with zeros on diagonal), we now make it symmetric
@@ -147,10 +147,14 @@ class BootstrapCCpy:
 
         Mk = np.zeros((self.K_ - self.L_, self.data.shape[0], self.data.shape[0]))
 
-        with Parallel(n_jobs=self.n_cores, prefer="processes") as fparallel:
-            cout = fparallel(delayed(self._forEachCluster)(k, verbose) for k in range(self.L_, self.K_))
-            for co in cout:
-                Mk[co[0] - self.L_] = co[1]
+        # with Parallel(n_jobs=self.n_cores, prefer="processes") as fparallel:
+        #     cout = fparallel(delayed(self._forEachCluster)(k, verbose) for k in range(self.L_, self.K_))
+        #     for co in cout:
+        #         Mk[co[0] - self.L_] = co[1]
+
+        for k in range(self.L_, self.K_):
+            Mkk = self._forEachCluster(k, verbose)
+            Mk[Mkk[0] - self.L_] = Mkk[1]
 
         self.Mk = Mk  ## Matriz de consenso
 
