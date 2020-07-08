@@ -8,6 +8,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from kneed import KneeLocator  # !pip install kneed
 from matplotlib.ticker import MaxNLocator
 
+from scipy.sparse import dok_matrix, coo_matrix
 
 class BootstrapCCpy:
     """
@@ -84,7 +85,10 @@ class BootstrapCCpy:
         mapp[0] = np.arange(Mh.shape[0])
         mapp[1] = resampled_indices
 
-        Mkh = np.zeros((data.shape[0],) * 2)  ## Matriz de coincidencia en k-clusters para el sample h
+        # Mkh = np.zeros((data.shape[0],) * 2)  ## Matriz de coincidencia en k-clusters para el sample h
+
+        Mkh = dok_matrix(((data.shape[0],) * 2), dtype=np.float32)
+
         for i in range(k):  # for each cluster  ## Si se buscaron 3 clusters, hay un i por cada uno de ellos
             ia = bisect.bisect_left(sorted_, i)
             ib = bisect.bisect_right(sorted_, i)
@@ -95,7 +99,10 @@ class BootstrapCCpy:
 
             # sometimes only one element is in a cluster (no combinations)
             if ids_Mk.size != 0:
-                Mkh[ids_Mk[0], ids_Mk[1]] += 1
+                Mkh1 = coo_matrix((np.ones(ids_Mk[0].shape[0]), (ids_Mk[0], ids_Mk[1])), shape=((data.shape[0],) * 2))
+                Mkh += Mkh1  ## operacion lenta y pesada
+
+                # Mkh[ids_Mk[0], ids_Mk[1]] += 1
 
                 # increment counts
         ids_2 = np.array(list(permutations(resampled_indices, 2))).T
@@ -112,16 +119,16 @@ class BootstrapCCpy:
         Mk = np.zeros((data.shape[0],) * 2)
         Is = np.zeros((data.shape[0],) * 2)
 
-        for b in range(self.B_):
-            Mkb, Isb = self._forEachSample(data=data, k=k, h=b, verbose=verbose)
-            Mk += Mkb
-            Is += Isb
+        # for b in range(self.B_):
+        #     Mkb, Isb = self._forEachSample(data=data, k=k, h=b, verbose=verbose)
+        #     Mk += Mkb
+        #     Is += Isb
 
-        # with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
-        #     sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
-        #     for so in sout:
-        #         Mk += so[0]
-        #         Is += so[1]
+        with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
+            sout = parallel(delayed(self._forEachSample)(data, k, h, verbose) for h in range(self.B_))
+            for so in sout:
+                Mk += so[0]
+                Is += so[1]
 
         Mk /= Is + 1e-8  # consensus matrix
         # Mk[i_] is upper triangular (with zeros on diagonal), we now make it symmetric
@@ -143,7 +150,13 @@ class BootstrapCCpy:
         if (data.shape[1] >= self.mC_):
             self._internal_resample = self._internal_resample_cols
 
-        Mk = np.zeros((self.K_ - self.L_, data.shape[0], data.shape[0]))
+        # Mk = np.zeros((self.K_ - self.L_, data.shape[0], data.shape[0]))
+
+        Mk = np.empty(self.K_ - self.L_, dtype=dok_matrix)
+        for idx in range(self.K_ - self.L_):
+            Mk[idx] = dok_matrix((data.shape[0],) * 2)
+
+        ## desde ahora se debe acceder como Mk[i][j,k]
 
         # with Parallel(n_jobs=self.n_cores, prefer="processes") as fparallel:
         #     cout = fparallel(delayed(self._forEachCluster)(k, verbose) for k in range(self.L_, self.K_))
