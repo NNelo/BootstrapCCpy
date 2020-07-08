@@ -39,28 +39,27 @@ class BootstrapCCpy:
         self.Ak = None
         self.deltaK = None
         self.bestK = None
-        self.data = None
         self._internal_resample = self._internal_resample_rows
         self.mC_ = 10
         self.n_cores = n_cores
 
-    def _internal_resample_rows(self):
-        resampled_indices = np.random.choice(range(self.data.shape[0]), size=int(self.data.shape[0]), replace=True)
+    def _internal_resample_rows(self, data):
+        resampled_indices = np.random.choice(range(data.shape[0]), size=int(data.shape[0]), replace=True)
         #  resampled_data_unique, resampled_indices_unique= np.unique(self.data[resampled_indices, :], return_index=True, axis=0)
 
         # para sin eliminacion de repetidos
-        resampled_data_unique, resampled_indices_unique = self.data[resampled_indices, :], resampled_indices
+        resampled_data_unique, resampled_indices_unique = data[resampled_indices, :], resampled_indices
 
         return resampled_indices_unique, resampled_data_unique
 
-    def _internal_resample_cols(self):
-        resampled_indices = np.random.choice(range(self.data.shape[0]), size=int(self.data.shape[0]), replace=True)
+    def _internal_resample_cols(self, data):
+        resampled_indices = np.random.choice(range(data.shape[0]), size=int(data.shape[0]), replace=True)
         # resampled_indices_cols = np.unique(np.random.choice(range(self.data.shape[1]), size=int(self.data.shape[1]), replace=True))
 
         # para sin eliminacion de repetidos
-        resampled_indices_cols = np.random.choice(range(self.data.shape[1]), size=int(self.data.shape[1]), replace=True)
+        resampled_indices_cols = np.random.choice(range(data.shape[1]), size=int(data.shape[1]), replace=True)
 
-        data_sampled_cols = self.data[:, resampled_indices_cols]
+        data_sampled_cols = data[:, resampled_indices_cols]
         #       resampled_data_unique, resampled_indices_unique= np.unique(data_sampled_cols[resampled_indices, :], return_index=True, axis=0)
 
         # para sin eliminacion de repetidos
@@ -68,23 +67,22 @@ class BootstrapCCpy:
 
         return resampled_indices_unique, resampled_data_unique
 
-    def _forEachSample(self, k, h, verbose):  ## siendo h el numero de muestra
+    def _forEachSample(self, data, k, h, verbose):  ## siendo h el numero de muestra
         if verbose:
             print("\tAt resampling h = %d, (k = %d)" % (h, k))
-        resampled_indices, resample_data = self._internal_resample()
+        resampled_indices, resample_data = self._internal_resample(data)
         Mh = self.cluster_(n_clusters=k).fit_predict(
             resample_data)  ## Index of the cluster each sample belongs to Mh.shape = n_samples,  (id del cluster, )  Es propia de este sample
         # find indexes of elements from same clusters with bisection
         # on sorted array => this is more efficient than brute force search
-        id_clusts = np.argsort(
-            Mh)  ## It returns an array of indices of the same shape as a that index data along the given axis in sorted order.
+        id_clusts = np.argsort(Mh)  ## It returns an array of indices of the same shape as a that index data along the given axis in sorted order.
         sorted_ = Mh[id_clusts]
 
         mapp = np.zeros((2, Mh.shape[0]), dtype=int)
         mapp[0] = np.arange(Mh.shape[0])
         mapp[1] = resampled_indices
 
-        Mkh = np.zeros((self.data.shape[0],) * 2)  ## Matriz de coincidencia en k-clusters para el sample h
+        Mkh = np.zeros((data.shape[0],) * 2)  ## Matriz de coincidencia en k-clusters para el sample h
         for i in range(k):  # for each cluster  ## Si se buscaron 3 clusters, hay un i por cada uno de ellos
             ia = bisect.bisect_left(sorted_, i)
             ib = bisect.bisect_right(sorted_, i)
@@ -99,33 +97,33 @@ class BootstrapCCpy:
 
                 # increment counts
         ids_2 = np.array(list(permutations(resampled_indices, 2))).T
-        Ish = np.zeros((self.data.shape[0],) * 2)
+        Ish = np.zeros((data.shape[0],) * 2)
         Ish[ids_2[0], ids_2[
             1]] = 1  ## Is changes and must be returned  ## Suma 1 por cada vez que un dato original se usó dentro de una muestra ## (1 si para esta muestra se uso el dato i,j y cayeron en el mismo cluster)
 
         return (Mkh, Ish)
 
-    def _forEachCluster(self, k, verbose=False):
+    def _forEachCluster(self, data, k, verbose=False):
         ## Mk -> corresponde a la fila de este cluster
         if verbose:
             print("At k = %d, aka. iteration = %d" % (k, 7))
-        Mk = np.zeros((self.data.shape[0],) * 2)
-        Is = np.zeros((self.data.shape[0],) * 2)
+        Mk = np.zeros((data.shape[0],) * 2)
+        Is = np.zeros((data.shape[0],) * 2)
 
-        # for b in range(self.B_):
-        #     Mkb, Isb = self._forEachSample(k=k, h=b, verbose=verbose)
-        #     Mk += Mkb
-        #     Is += Isb
+        for b in range(self.B_):
+            Mkb, Isb = self._forEachSample(data=data, k=k, h=b, verbose=verbose)
+            Mk += Mkb
+            Is += Isb
 
-        with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
-            sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
-            for so in sout:
-                Mk += so[0]
-                Is += so[1]
+        # with Parallel(n_jobs=self.n_cores, prefer="processes") as parallel:
+        #     sout = parallel(delayed(self._forEachSample)(k, h, verbose) for h in range(self.B_))
+        #     for so in sout:
+        #         Mk += so[0]
+        #         Is += so[1]
 
         Mk /= Is + 1e-8  # consensus matrix
         # Mk[i_] is upper triangular (with zeros on diagonal), we now make it symmetric
-        Mk[range(self.data.shape[0]), range(self.data.shape[0])] = 1  # always with self
+        Mk[range(data.shape[0]), range(data.shape[0])] = 1  # always with self
 
         return (k, Mk)
 
@@ -139,13 +137,11 @@ class BootstrapCCpy:
         """
         assert self.Mk is None, "Already fit"
 
-        self.data = data
-
         ## Si se supera la cantidad mínima de atributos por datos, se muestrean las columnas
-        if (self.data.shape[1] >= self.mC_):
+        if (data.shape[1] >= self.mC_):
             self._internal_resample = self._internal_resample_cols
 
-        Mk = np.zeros((self.K_ - self.L_, self.data.shape[0], self.data.shape[0]))
+        Mk = np.zeros((self.K_ - self.L_, data.shape[0], data.shape[0]))
 
         # with Parallel(n_jobs=self.n_cores, prefer="processes") as fparallel:
         #     cout = fparallel(delayed(self._forEachCluster)(k, verbose) for k in range(self.L_, self.K_))
@@ -153,7 +149,7 @@ class BootstrapCCpy:
         #         Mk[co[0] - self.L_] = co[1]
 
         for k in range(self.L_, self.K_):
-            Mkk = self._forEachCluster(k, verbose)
+            Mkk = self._forEachCluster(data, k, verbose)
             Mk[Mkk[0] - self.L_] = Mkk[1]
 
         self.Mk = Mk  ## Matriz de consenso
@@ -176,8 +172,6 @@ class BootstrapCCpy:
         kneePoint += self.L_
 
         self.bestK = kneePoint
-
-        self.data = None
 
     def predict(self):
         """
