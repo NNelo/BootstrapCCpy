@@ -8,7 +8,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from kneed import KneeLocator  # !pip install kneed
 from matplotlib.ticker import MaxNLocator
 
-from scipy.sparse import dok_matrix, coo_matrix
+from scipy.sparse import dok_matrix, coo_matrix, csr_matrix
 
 class BootstrapCCpy:
     """
@@ -87,7 +87,7 @@ class BootstrapCCpy:
 
         # Mkh = np.zeros((data.shape[0],) * 2)  ## Matriz de coincidencia en k-clusters para el sample h
 
-        Mkh = dok_matrix(((data.shape[0],) * 2), dtype=np.float32)
+        Mkh = csr_matrix(((data.shape[0],) * 2), dtype=np.float32)
 
         for i in range(k):  # for each cluster  ## Si se buscaron 3 clusters, hay un i por cada uno de ellos
             ia = bisect.bisect_left(sorted_, i)
