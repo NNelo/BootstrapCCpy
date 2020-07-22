@@ -1,15 +1,10 @@
 # BootstrapCCpy
 
-Consensus Clustering comes to address the issue of determining the optimal amount of clusters conformed by the dataset. 
+The Bootstrap Consensus Clustering method is a faster and simpler implementation of the well known resampling-based method for class discovery and visualization developed by [Monti et al](https://link.springer.com/content/pdf/10.1023/A:1023949509487.pdf). In particular, the BootstrapCCpy package diminishes the number of required parameters on the original implementation, that requires to define the proportion of items and/or features to sample in each iteration. In BootstrapCCpy, the item/feature sample is applied over a bootstrap technique diminishing the number of parameters and avoiding user specific parameter selection. Another drawback of the original implementation is its secuencial implementation, which make it impractical for Big Data Analytics approaches. The aim of this work is to improve a Pyhton library implementation, BootstrapCCpy, in order to reduce execution time  by paralelizing critical secuencial steps, as well as the proposal of a bootstrap sampling approach that eliminates user defined parameters. It also provides visualization facilities out of the box, such as heatmaps. 
 
-The benefit of this approach is the provision of several measures in order to recognize the quality of each one of the conformed clusters.
+## Note
 
-It also provides visualization facilities out of the box, such as heatmaps. 
-
-In addition, this python implementation:
-* makes use of Bootstrap as the perturbation technique
-* allows the usage of multi-core CPU to perform faster
-
+We have also developed a version in R: [BootstrapCC](https://github.com/elmerfer/BootstrapCC)
 
 ## Getting started
 
@@ -143,6 +138,6 @@ Dependencies: kneed
 * [Franco Bobadilla](https://github.com/FrancoBobadilla) - Faculty of Engineering, Catholic University of Córdoba (UCC) *
 * [Nelo Nanfara](https://github.com/NNelo/) - Faculty of Engineering, Catholic University of Córdoba (UCC) *
 * Ing. Pablo Pastore - DeepVisionAi, inc.
-* Bioing. PhD Elmer Fernández - CIDIE-CONICET-UCC
+* [Bioing. PhD Elmer Fernández](https://github.com/elmerfer) - CIDIE-CONICET-UCC
 
 *both authors must be considered as the first author
