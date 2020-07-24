@@ -124,6 +124,11 @@ predict_data(data)
 ```
 
 
+### get_areas
+```python
+get_areas()
+```
+
 ## Tips
 
 Dependencies: kneed

@@ -7,7 +7,7 @@ import matplotlib
 from scipy.cluster.hierarchy import dendrogram, linkage
 from kneed import KneeLocator  # !pip install kneed
 from matplotlib.ticker import MaxNLocator
-
+import warnings
 
 class BootstrapCCpy:
     """
@@ -67,6 +67,121 @@ class BootstrapCCpy:
         resampled_data_unique, resampled_indices_unique = data_sampled_cols[resampled_indices, :], resampled_indices
 
         return resampled_indices_unique, resampled_data_unique
+
+    '''
+    Next method is used to find a better n given an array of areas corresponding to CDF
+    The problem it comes to address is the changing optimal k found depending on the 
+        length of the given areas corresponding to the range L-K submitted by de user
+
+    The procedure is the following
+        - The amount of considered areas is increased from 2 to maximum
+        - A knee point is calculated and stored for each areas array just created
+        - The occurrences of each knee are counted
+        - The most frequent knee is chosen as the most likely one
+        - If there is another knee point that could have been picked, one more check is done
+        - Some of the last areas in the array that support the most frequent knee point are 
+            deleted in order to check if the most likely point remains the same.   
+    '''
+    @staticmethod
+    def _determineBestKnee(areas, verbose):
+        noKneeFoundCount = 0
+
+        ## dealing with Warnings as Errors
+        warnings.filterwarnings('error')
+
+        knees = []
+        areasInc = [areas[0]]
+        for a in areas[1:]:
+            areasInc.append(a)
+            try:
+                k = KneeLocator(range(len(areasInc)), areasInc, S=1.0, curve='concave', direction='increasing')
+                knees.append(k.knee)
+            except UserWarning:
+                knees.append(None)
+                noKneeFoundCount += 1
+
+        ## True if the list is NOT empty
+        if knees:
+            knees = np.array(knees)
+            unique, counts = np.unique(knees[knees != np.array(None)], return_counts=True)
+            incResults = dict(zip(unique, counts))
+
+            mostLikelyPoint = max(incResults, key=incResults.get)
+            mostLikelyPointPosition = np.where(knees == mostLikelyPoint)[0][0]
+
+            ## TODO: return a second likely point would be considered as an option
+
+            if verbose:
+                print("Count of increasing cluster number", incResults)
+                print("First most likely point found:", mostLikelyPoint)
+                print("First most likely point found at:", mostLikelyPointPosition)
+
+            ## If there is at least 2 likely points
+            ## If the chosen point is the greatest option, one more check is done
+            # if len(incResults.keys()) > 1 and max(incResults.keys()) == mostLikelyPoint:
+            if len(incResults.keys()) > 1:
+                ## It includes the most frequent point and the next one
+
+                ## the optimal points found should be sorted.
+                ## let's supose [1,1,2,2,3,2] is not allowed to happen
+                assert np.array_equal(knees[knees != np.array(None)], np.sort(knees[knees != np.array(None)]))
+
+                if(max(incResults.keys()) == mostLikelyPoint):
+                    mostLikelyPointNeig = mostLikelyPoint - 1
+                    d = -1
+                    stop = 0
+                else:
+                    mostLikelyPointNeig = mostLikelyPoint + 1
+                    d = +1
+                    stop = max(incResults.keys())+1
+
+                if verbose:
+                    print("full knees array", knees)
+
+                ## Compare the number of times the greatest cluster number againts the second one
+
+                while mostLikelyPointNeig not in incResults.keys() and stop != mostLikelyPointNeig:
+                    mostLikelyPointNeig += d
+
+                if stop != mostLikelyPointNeig:
+                    if (max(incResults.keys()) == mostLikelyPoint):
+                        valueDiff = incResults[mostLikelyPoint] - incResults[mostLikelyPointNeig]
+                        if valueDiff > 0:
+                            for i in range(valueDiff):
+                                knees = knees[:-1]
+
+                        ## Up to this moment, the higher point is less or equal than the second one
+                        if (incResults[mostLikelyPoint] - valueDiff) > 1:
+                            knees = knees[:-1]
+
+                    if verbose:
+                        print("knees after deleting some entries of most frequent", knees)
+
+                    areasReduced = areas[:len(knees)]
+
+                    if verbose:
+                        print("most frequent point is the greatest NO")
+                        print("previous most likely point:", mostLikelyPoint)
+                        print("reevaluating over the following areas:", areasReduced)
+                    try:
+                        k = KneeLocator(range(len(areasReduced)), areasReduced, S=1.0, curve='concave',
+                                        direction='increasing')
+                        if verbose: print("new knee", k.knee)
+                        mostLikelyPoint = k.knee
+                    except:
+                        if verbose: print("new knee not found")
+
+                elif verbose:
+                    print("mostLikelyPointNeig not found, stop:", stop)
+
+        else:
+            print("No knee found")
+            mostLikelyPoint = 0
+
+        ## back to just showing the warnings
+        warnings.filterwarnings('default')
+
+        return mostLikelyPoint
 
     def _forEachSample(self, k, h, verbose):  ## siendo h el numero de muestra
         if verbose:
@@ -158,12 +273,7 @@ class BootstrapCCpy:
 
         self.Ak = areas
 
-        kneedle = KneeLocator(range(len(areas)), areas, S=1.0, curve='concave', direction='increasing')
-
-        if (None == kneedle.knee):
-            print("No knee found")
-
-        kneePoint = (kneedle.knee if None != kneedle.knee else 0)
+        kneePoint = self._determineBestKnee(areas, verbose=verbose)
         kneePoint += self.L_
 
         self.bestK = kneePoint
@@ -269,3 +379,7 @@ class BootstrapCCpy:
             plt.xticks([])
             plt.yticks([])
             plt.show()
+
+    def get_areas(self):
+        assert self.Mk is not None, "First run fit"
+        return self.Ak

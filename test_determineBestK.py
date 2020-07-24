@@ -1,110 +1,6 @@
 from kneed import KneeLocator
 import numpy as np
-import warnings
-
-'''
-This method is used to find a better n given an array of areas corresponding to CDF
-The problem it comes to address is the changing optimal k found depending on the 
-    length of the given areas corresponding to the range L-K submitted by de user
-
-The procedure is the following
-    - The amount of considered areas is increased from 2 to maximum
-    - A knee point is calculated and stored for each areas array just created
-    - The occurrences of each knee are counted
-    - The most frequent knee is chosen as the most likely one
-    - If there is another knee point that could have been picked, one more check is done
-    - Some of the last areas in the array that support the most frequent knee point are 
-        deleted in order to check if the most likely point remains the same.   
-'''
-def determineBestK(areas, verbose=False):
-    noKneeFoundCount = 0
-
-    ## dealing with Warnings as Errors
-    warnings.filterwarnings('error')
-
-    knees = []
-    areasInc = [areas[0]]
-    for a in areas[1:]:
-        areasInc.append(a)
-        try:
-            k = KneeLocator(range(len(areasInc)), areasInc, S=1.0, curve='concave', direction='increasing')
-            knees.append(k.knee)
-        except UserWarning:
-            knees.append(None)
-            noKneeFoundCount += 1
-
-    ## True if the list is NOT empty
-    if knees:
-        knees = np.array(knees)
-        unique, counts = np.unique(knees[knees != np.array(None)], return_counts=True)
-        incResults = dict(zip(unique, counts))
-
-        mostLikelyPoint = max(incResults, key=incResults.get)
-        mostLikelyPointPosition = np.where(knees == mostLikelyPoint)[0][0]
-
-        ## TODO: return a second likely point would be considered as an option
-
-        if verbose:
-            print("Count of increasing cluster number", incResults)
-            print("First most likely point found at:", mostLikelyPointPosition)
-
-        ## If there is at least 2 likely points
-        ## If the chosen point is the greatest option, one more check is done
-        if len(incResults.keys()) > 1 and max(incResults.keys()) == mostLikelyPoint:
-            ## It includes the most frequent point and the next one
-
-            ## the optimal points found should be sorted.
-            ## let's supose [1,1,2,2,3,2] is not allowed to happen
-            assert np.array_equal(knees[knees != np.array(None)], np.sort(knees[knees != np.array(None)]))
-
-            ## Looking for the greatest's previus key
-            mostLikelyPointNeig = mostLikelyPoint - 1
-
-            if verbose:
-                print("full knees array", knees)
-
-            ## Compare the number of times the greatest cluster number againts the second one
-
-            while mostLikelyPointNeig not in incResults.keys() and 0 != mostLikelyPointNeig:
-                mostLikelyPointNeig -= 1
-
-            if 0 != mostLikelyPointNeig:
-                valueDiff = incResults[mostLikelyPoint] - incResults[mostLikelyPointNeig]
-                if valueDiff > 0:
-                    for i in range(valueDiff):
-                        knees = knees[:-1]
-
-                ## Up to this moment, the higher point is less or equal than the second one
-                if (incResults[mostLikelyPoint] - valueDiff) > 1:
-                    knees = knees[:-1]
-
-                if verbose:
-                    print("knees after deleting some entries of most frequent", knees)
-
-                areasReduced = areas[:len(knees)]
-
-                if verbose:
-                    print("most frequent point is the greatest")
-                    print("previous most likely point:", mostLikelyPoint)
-                    print("reevaluating over the following areas:", areasReduced)
-                try:
-                    k = KneeLocator(range(len(areasReduced)), areasReduced, S=1.0, curve='concave', direction='increasing')
-                    if verbose: print("new knee", k.knee)
-                    mostLikelyPoint = k.knee
-                except:
-                    if verbose: print("new knee not found")
-
-            elif verbose:
-                print("mostLikelyPointNeig is zero")
-
-    else:
-        print("No knee found")
-        mostLikelyPoint = 0
-
-    ## back to just showing the warnings
-    warnings.filterwarnings('default')
-
-    return mostLikelyPoint
+from BootstrapCCpy import BootstrapCCpy as bcc
 
 if __name__ == '__main__':
     # from iris dataset with large K
@@ -124,16 +20,21 @@ if __name__ == '__main__':
               8.569850552306692, 8.791029718545877, 8.938015115762115, 9.041722239321501, 9.100270168598884,
               9.172925002564893, 9.247529154269689, 9.295201942478029, 9.338394719742828]
 
+    # result of: CC = bcc(cluster=KMeans().__class__, K=10, B=60, n_cores=4)
+    areas60 = [388000.0, 604000.0, 748000.0, 820000.0, 835915.8, 854524.8, 874012.0, 891740.6, 907195.8]
+
     areas = areas5
 
     print("*****************************************************")
-    print("Gave 3, should 3:", determineBestK(areas3, verbose=True) + 2)
+    print("Gave 3, should 3:", bcc._determineBestKnee(areas3, verbose=True) + 2)
     print("*****************************************************")
-    print("Gave 5, should 5:", determineBestK(areas5, verbose=True) + 2)
+    print("Gave 5, should 5:", bcc._determineBestKnee(areas5, verbose=True) + 2)
     print("*****************************************************")
-    print("Gave 4, should 3:", determineBestK(areas4, verbose=True) + 2)
+    print("Gave 4, should 3:", bcc._determineBestKnee(areas4, verbose=True) + 2)
     print("*****************************************************")
-    print("Gave 5, should 3/5:", determineBestK(areasp, verbose=True) + 2)
+    print("Gave 5, should 3/5:", bcc._determineBestKnee(areasp, verbose=True) + 2)
+    print("*****************************************************")
+    print("Gave 5, should 5:", bcc._determineBestKnee(areas60, verbose=True) + 2)
 
 
     ## The following comment section is a non-successful try to "ponderate" the last areas
