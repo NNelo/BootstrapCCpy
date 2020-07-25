@@ -100,9 +100,14 @@ class BootstrapCCpy:
                 knees.append(None)
                 noKneeFoundCount += 1
 
+        kneesArray = np.array(knees)
+
+        if isFullOfNone(kneesArray):
+            knees = []
+
         ## True if the list is NOT empty
         if knees:
-            knees = np.array(knees)
+            knees = kneesArray
             unique, counts = np.unique(knees[knees != np.array(None)], return_counts=True)
             incResults = dict(zip(unique, counts))
 
@@ -126,14 +131,14 @@ class BootstrapCCpy:
                 ## let's supose [1,1,2,2,3,2] is not allowed to happen
                 assert np.array_equal(knees[knees != np.array(None)], np.sort(knees[knees != np.array(None)]))
 
-                if(max(incResults.keys()) == mostLikelyPoint):
+                if (max(incResults.keys()) == mostLikelyPoint):
                     mostLikelyPointNeig = mostLikelyPoint - 1
                     d = -1
                     stop = 0
                 else:
                     mostLikelyPointNeig = mostLikelyPoint + 1
                     d = +1
-                    stop = max(incResults.keys())+1
+                    stop = max(incResults.keys()) + 1
 
                 if verbose:
                     print("full knees array", knees)
@@ -383,3 +388,10 @@ class BootstrapCCpy:
     def get_areas(self):
         assert self.Mk is not None, "First run fit"
         return self.Ak
+
+## auxiliar function
+def isFullOfNone(arr):
+    for a in arr:
+        if a is not None:
+            return False
+    return True

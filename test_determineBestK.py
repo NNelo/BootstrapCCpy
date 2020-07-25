@@ -23,7 +23,18 @@ if __name__ == '__main__':
     # result of: CC = bcc(cluster=KMeans().__class__, K=10, B=60, n_cores=4)
     areas60 = [388000.0, 604000.0, 748000.0, 820000.0, 835915.8, 854524.8, 874012.0, 891740.6, 907195.8]
 
+    # result of: CC = bcc(cluster=KMeans().__class__, K=4, B=20, n_cores=4)
+    # max() arg is an empty sequence on --> mostLikelyPoint = max(incResults, key=incResults.get)
+    areas7 = [388037.79999999993, 604005.3999999999, 748009.0]
+
+    # CC = bcc(cluster=KMeans().__class__, K=7, B=25, n_cores=2)
+    # blob_data_4dims_5clusters.csv
+    areas8 = [388003.6, 604000.0, 748000.0, 820000.0, 837534.8, 854814.8]
+
     areas = areas5
+
+
+    ## gave: by the training. Should: based on dataset knowledge
 
     print("*****************************************************")
     print("Gave 3, should 3:", bcc._determineBestKnee(areas3, verbose=True) + 2)
@@ -35,6 +46,10 @@ if __name__ == '__main__':
     print("Gave 5, should 3/5:", bcc._determineBestKnee(areasp, verbose=True) + 2)
     print("*****************************************************")
     print("Gave 5, should 5:", bcc._determineBestKnee(areas60, verbose=True) + 2)
+    print("*****************************************************")
+    print("Should not throw:", bcc._determineBestKnee(areas7, verbose=True) + 2)
+    print("*****************************************************")
+    print("Gave 4, should 5:", bcc._determineBestKnee(areas8, verbose=True) + 2)
 
 
     ## The following comment section is a non-successful try to "ponderate" the last areas
