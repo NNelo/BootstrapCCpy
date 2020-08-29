@@ -4,7 +4,7 @@ import bisect
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 import matplotlib
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from kneed import KneeLocator  # !pip install kneed
 from matplotlib.ticker import MaxNLocator
 import warnings
@@ -358,32 +358,43 @@ class BootstrapCCpy:
         plt.show()
 
     def plot_consensus_heatmap(self):
-        matplotlib.rcParams['figure.figsize'] = 12, 6
+        # To return the labels of each k cluster
+        # Key: k Value: [k1, k2, k4, k3, k2, ..., kn] with n <= k*
+        labels_dic = dict()
 
         for i in range(self.Mk.shape[0]):
-            plt.subplot(1, 2, 1)
+            fig = plt.figure(figsize=(12,6))
+
             linked = linkage(self.Mk[i], 'single')
+            labels = fcluster(linked, i + 2, criterion='maxclust') - 1
+            labels_dic[i + 2] = labels
+
+            ax1 = plt.subplot2grid((1, 2), (0, 0))
             R = dendrogram(linked,
-                           orientation='top',
-                           labels=None,
+                           orientation='left',
+                           labels=labels,
                            distance_sort='descending',
-                           show_leaf_counts=True)
+                           show_leaf_counts=True,
+                           ax=ax1
+                           )
 
-            plt.title(str(i + 2) + " clusters: dendogram")
-            plt.xticks([])
-            plt.yticks([])
+            ax1.set_title(str(i + 2) + " clusters: dendrogram")
+            ax1.set_xticklabels([])
+            ax1.set_yticklabels([])
 
-            plt.subplot(1, 2, 2)
             MSorted = self.Mk[i]
             MSorted = MSorted[:, R['leaves']]
             MSorted = MSorted[R['leaves'], :]
 
-            plt.imshow(MSorted, cmap='Blues', interpolation='nearest')
+            ax2 = plt.subplot2grid((1, 2), (0, 1))
+            ax2.imshow(np.flipud(np.fliplr(MSorted)), cmap='Blues', interpolation='nearest', aspect='auto')
+            ax2.set_title(str(i + 2) + " clusters: heatmap")
+            ax2.set_xticklabels([])
+            ax2.set_yticklabels([])
 
-            plt.title(str(i + 2) + " clusters: heatmap")
-            plt.xticks([])
-            plt.yticks([])
             plt.show()
+
+        return labels_dic
 
     def get_areas(self):
         assert self.Mk is not None, "First run fit"
