@@ -363,7 +363,7 @@ class BootstrapCCpy:
         labels_dic = dict()
 
         for i in range(self.Mk.shape[0]):
-            fig = plt.figure(figsize=(12,6))
+            fig = plt.figure(figsize=(13,6))
 
             linked = linkage(self.Mk[i], 'single')
             labels = fcluster(linked, i + 2, criterion='maxclust') - 1
