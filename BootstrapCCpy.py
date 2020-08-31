@@ -82,6 +82,7 @@ class BootstrapCCpy:
         - Some of the last areas in the array that support the most frequent knee point are 
             deleted in order to check if the most likely point remains the same.   
     '''
+
     @staticmethod
     def _determineBestKnee(areas, verbose):
         noKneeFoundCount = 0
@@ -357,24 +358,51 @@ class BootstrapCCpy:
 
         plt.show()
 
+    def plot_dendrogram(self):
+        return self.plot_consensus_heatmap()
+
     def plot_consensus_heatmap(self):
         # To return the labels of each k cluster
         # Key: k Value: [k1, k2, k4, k3, k2, ..., kn] with n <= k*
         labels_dic = dict()
 
         for i in range(self.Mk.shape[0]):
-            fig = plt.figure(figsize=(13,6))
+            fig = plt.figure(figsize=(13, 6))
 
             linked = linkage(self.Mk[i], 'single')
-            labels = fcluster(linked, i + 2, criterion='maxclust') - 1
-            labels_dic[i + 2] = labels
+
+            # labels
+            # length is (n_data) -> cluster of the original sample
+            orig_data_clusters = fcluster(linked, i + 2, criterion='maxclust')
+
+            # Saving the cluster for the i-th data to be returned
+            labels_dic[i + 2] = orig_data_clusters
+
+            # Determines the cluster number if the row has any clustered leaf
+            cluster_indicator_links = [linked[i, 0] if n <= linked.shape[0] else None for i, n in
+                                       enumerate(linked[:, 0])]
+
+            # link_color_func used to colorize
+            # Param: fisrt given k element is Z.shape[0] + 1
+            def lcf(k):
+                # k-Z.shape[0]-1 is 0
+                i = k - linked.shape[0] - 1
+
+                indicator = cluster_indicator_links
+
+                if indicator[i] is not None:
+                    # Array to colorize the ith cluster  (uses matplotlib color cycles)
+                    return 'C' + orig_data_clusters[indicator[i].astype(int)].astype(str)
+
+                # Default color is black (mostly used to cluster to cluster link)
+                return 'k'
 
             ax1 = plt.subplot2grid((1, 2), (0, 0))
             R = dendrogram(linked,
                            orientation='left',
-                           labels=labels,
                            distance_sort='descending',
                            show_leaf_counts=True,
+                           link_color_func=lcf,
                            ax=ax1
                            )
 
