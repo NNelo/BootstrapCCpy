@@ -1,4 +1,4 @@
-numpy==1.19.1
+numpy==1.22.0
 joblib==0.16.0
 kneed==0.7.0
 matplotlib==3.3.2
